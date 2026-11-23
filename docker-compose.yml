@@ -1,0 +1,31 @@
+# تشغيل كامل على أي سيرفر: docker compose up -d --build
+# HTTPS والنطاق: يتولاهما خادم الويب/البروكسي الخاص بالجامعة أمام المنفذ المنشور.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: jadara
+      POSTGRES_USER: jadara
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ضع POSTGRES_PASSWORD في .env}
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U jadara -d jadara"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://jadara:${POSTGRES_PASSWORD}@db:5432/jadara
+      DATABASE_SSL: "0"
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      COOKIE_SECURE: ${COOKIE_SECURE:-1}
+      DATA_DIR: /data
+    volumes: [uploads:/data]
+    ports: ["${APP_PORT:-3000}:3000"]
+volumes: {dbdata: {}, uploads: {}}
